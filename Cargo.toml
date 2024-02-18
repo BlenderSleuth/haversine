@@ -1,4 +1,4 @@
 [workspace]
 resolver = "2"
-members = ["haversine_gen"]
+members = ["haversine", "haversine_gen"]
 
