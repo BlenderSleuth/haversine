@@ -1,36 +1,7 @@
+mod rand;
+
 use std::{env, fs};
-use std::fmt::Display;
 use std::mem::size_of;
-use std::path::Path;
-
-use anyhow::Result;
-use rand::distributions::{Distribution, Uniform};
-use rand::prelude::*;
-use serde::Serialize;
-use serde_json::json;
-
-#[derive(Copy, Clone)]
-enum HaversineDistribution {
-    Uniform,
-    Cluster,
-}
-
-impl Display for HaversineDistribution {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HaversineDistribution::Uniform => write!(f, "uniform"),
-            HaversineDistribution::Cluster => write!(f, "cluster"),
-        }
-    }
-}
-
-#[derive(Serialize)]
-struct Pair {
-    x0: f64,
-    y0: f64,
-    x1: f64,
-    y1: f64,
-}
 
 // NOTE(casey): earth_radius is generally expected to be 6372.8
 fn reference_haversine(x0: f64, y0: f64, x1: f64, y1: f64, earth_radius: f64) -> f64
@@ -55,137 +26,110 @@ fn reference_haversine(x0: f64, y0: f64, x1: f64, y1: f64, earth_radius: f64) ->
     earth_radius * c
 }
 
-fn random_pair(x_dist: Uniform<f64>, y_dist: Uniform<f64>, rng: &mut StdRng) -> (Pair, f64) {
-    let pair = Pair {
-        x0: x_dist.sample(rng),
-        y0: y_dist.sample(rng),
-        x1: x_dist.sample(rng),
-        y1: y_dist.sample(rng),
-    };
-    let answer = reference_haversine(pair.x0, pair.y0, pair.x1, pair.y1, 6372.8);
-    (pair, answer)
+fn print_usage() {
+    use std::path::Path;
+
+    let exe_name =
+        Path::new(&env::current_exe().unwrap())
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap().to_string();
+
+    println!("Usage: {exe_name} [uniform/cluster] [random seed] [number of coordinate pairs to generate]");
 }
 
-fn main() -> Result<()> {
+fn main() -> std::io::Result<()> {
     let args = env::args().collect::<Vec<String>>();
-
-    let mut distribution = HaversineDistribution::Uniform;
-    let mut random_seed = 23890454589;
-    let mut num_pairs: usize = 10;
-    let mut invalid_args = args.len() != 4;
-
-    for i in 1..args.len() {
-        if invalid_args {
-            break;
-        }
-        match i {
-            1 => {
-                match args[i].as_str() {
-                    "uniform" => distribution = HaversineDistribution::Uniform,
-                    "cluster" => distribution = HaversineDistribution::Cluster,
-                    _ => {
-                        invalid_args = true;
-                    }
-                }
-            }
-            2 => {
-                if let Ok(parsed_value) = args[i].parse::<u64>() {
-                    random_seed = parsed_value;
-                } else {
-                    invalid_args = true;
-                }
-            }
-            3 => {
-                if let Ok(parsed_value) = args[i].parse::<usize>() {
-                    num_pairs = parsed_value;
-                } else {
-                    invalid_args = true;
-                }
-            }
-            _ => {
-                invalid_args = true;
-            }
-        }
-    }
-
-    if invalid_args {
-        // Print usage
-        let exe_name =
-            Path::new(&env::current_exe().unwrap())
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap().to_string();
-
-        println!("Usage: {exe_name} [uniform/cluster] [random seed] [number of coordinate pairs to generate]", );
+    
+    if args.len() != 4 {
+        print_usage();
         return Ok(());
     }
 
+    let mut cluster_count_left = u64::MAX;
+    let max_allowed_x = 180.0;
+    let max_allowed_y = 90.0;
+
+    let mut x_center = 0.0;
+    let mut y_center = 0.0;
+    let mut x_radius = max_allowed_x;
+    let mut y_radius = max_allowed_y;
+
+    let distribution = args[1].as_str();
+    
+    if distribution == "cluster" {
+        cluster_count_left = 0;
+    } else if distribution != "uniform" {
+        println!("WARNING: Unrecognized method name. Using 'uniform'.");
+    }
+    
+    let random_seed = if let Ok(parsed_value) = args[2].parse::<u64>() {
+        parsed_value
+    } else {
+        print_usage();
+        return Ok(());
+    };
+    
+    let mut random_series = rand::RandomSeries::seed(random_seed);
+    
+    let num_pairs = if let Ok(parsed_value) = args[3].parse::<usize>() {
+        parsed_value
+    } else {
+        print_usage();
+        return Ok(());
+    };
+    
+    let max_pairs_exp = 34;
+    let max_pairs = 1usize << max_pairs_exp;
+    if num_pairs > max_pairs {
+        println!("Maximum number of pairs is 2^{max_pairs_exp} ({max_pairs}).");
+        return Ok(());
+    }
+    
+    let mut sum = 0.0;
+    let sum_coef = 1.0 / num_pairs as f64;
+    let cluster_count_max = 1 + (num_pairs as u64 / 64);
+    
+    let mut data_str = String::with_capacity(15 + num_pairs*100);
+    data_str += "{\"pairs\": [\n";
+    let mut answers = Vec::<u8>::with_capacity((num_pairs+1) * size_of::<f64>());
+    
+    for i in 0..num_pairs {
+        if cluster_count_left == 0 {
+            cluster_count_left = cluster_count_max;
+            x_center = random_series.random_in_range(-max_allowed_x, max_allowed_x);
+            y_center = random_series.random_in_range(-max_allowed_y, max_allowed_y);
+            x_radius = random_series.random_in_range(0.0, max_allowed_x);
+            y_radius = random_series.random_in_range(0.0, max_allowed_y);
+        } else {
+            cluster_count_left -= 1;
+        }
+        
+        let x0 = random_series.random_degree(x_center, x_radius, max_allowed_x);
+        let y0 = random_series.random_degree(y_center, y_radius, max_allowed_y);
+        let x1 = random_series.random_degree(x_center, x_radius, max_allowed_x);
+        let y1 = random_series.random_degree(y_center, y_radius, max_allowed_y);
+
+        let earth_radius = 6372.8;
+        let haversine_distance = reference_haversine(x0, y0, x1, y1, earth_radius);
+
+        sum += sum_coef * haversine_distance;
+
+        let json_sep = if i == (num_pairs - 1) { "\n" } else { ",\n" };
+        data_str += format!("    {{\"x0\":{x0:.16}, \"y0\":{y0:.16}, \"x1\":{x1:.16}, \"y1\":{y1:.16}}}{json_sep}").as_str();
+        answers.extend_from_slice(&haversine_distance.to_be_bytes());
+    }
+    
+    data_str += "]}\n";
+    answers.extend_from_slice(&sum.to_be_bytes());
+    
+    fs::write(format!("data_{num_pairs}_flex.json"), data_str)?;
+    fs::write(format!("data_{num_pairs}_haveranswer.f64"), answers)?;
+    
     println!("Distribution: {distribution}");
     println!("Random seed: {random_seed}");
     println!("Pair count: {num_pairs}");
-
-    let mut expected_sum = 0.0;
-    let mut rng: StdRng = SeedableRng::seed_from_u64(random_seed);
-
-
-    let mut pairs = Vec::<Pair>::with_capacity(num_pairs);
-    let mut answers = Vec::<u8>::with_capacity(num_pairs * size_of::<f64>());
-
-    // sample clusters on a sphere
-    match distribution {
-        HaversineDistribution::Uniform => {
-            let x_dist = Uniform::<f64>::new_inclusive(-180.0, 180.0);
-            let y_dist = Uniform::<f64>::new_inclusive(-90.0, 90.0);
-
-            for _ in 0..num_pairs {
-                let (pair, answer) = random_pair(x_dist, y_dist, &mut rng);
-                expected_sum += answer;
-
-                pairs.push(pair);
-                answers.extend_from_slice(&answer.to_be_bytes());
-            }
-        }
-        HaversineDistribution::Cluster => {
-            let num_groups = 64;
-            let group_size = num_pairs.div_ceil(num_groups);
-
-            let num_x_divisions = 16;
-            let num_y_divisions = num_x_divisions / 2;
-            let division = 360.0 / num_x_divisions as f64;
-
-            let x_division = Uniform::<i32>::new(-num_x_divisions / 2, num_x_divisions / 2);
-            let y_division = Uniform::<i32>::new(-num_y_divisions / 2, num_y_divisions / 2);
-
-            'group_iter: for _ in 0..num_groups {
-                let x_group = x_division.sample(&mut rng) as f64 * division;
-                let y_group = y_division.sample(&mut rng) as f64 * division;
-
-                let x_dist = Uniform::<f64>::new_inclusive(x_group, x_group + division);
-                let y_dist = Uniform::<f64>::new_inclusive(y_group, y_group + division);
-
-                for _ in 0..group_size {
-                    if pairs.capacity() == pairs.len() {
-                        break 'group_iter; // Generate no more points (last group is truncated)
-                    }
-
-                    let (pair, answer) = random_pair(x_dist, y_dist, &mut rng);
-                    expected_sum += answer;
-
-                    pairs.push(pair);
-                    answers.extend_from_slice(&answer.to_be_bytes());
-                }
-            }
-        }
-    }
-
-    expected_sum /= num_pairs as f64;
-    answers.extend_from_slice(&expected_sum.to_be_bytes());
-    println!("Expected sum: {expected_sum}");
-
-    let j = json!({"pairs": pairs});
-
-    fs::write(format!("data_{num_pairs}_flex.json"), j.to_string())?;
-    fs::write(format!("data_{num_pairs}_haveranswer.f64"), answers)?;
+    println!("Expected sum: {sum:.16}");
 
     Ok(())
 }
