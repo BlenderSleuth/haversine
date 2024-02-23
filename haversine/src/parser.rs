@@ -1,7 +1,7 @@
 use std::str::Chars;
 use haversine::time_function;
 
-use crate::Pair;
+use crate::{Pair, ProfPoint};
 
 enum ParseState {
     X0,
@@ -26,6 +26,8 @@ fn get_digit(digit: char) -> Option<u8> {
 }
 
 pub fn parse_num(input: &mut Chars) -> Option<f64> {
+    //time_function!(ProfPoint::ParseNum);
+    
     // Parse number
     let mut valid_num = false;
     let mut num = 0.0;
@@ -63,7 +65,7 @@ pub fn parse_num(input: &mut Chars) -> Option<f64> {
 }
 
 pub fn parse_pairs(input: &str) -> Option<Vec<Pair>> {
-    time_function!(1);
+    time_function!(ProfPoint::ParsePairs);
     
     let minimum_json_pair_encoding = 24 * 4; // Minimum 24 bytes per number encoding
     let max_pair_count = input.len() / minimum_json_pair_encoding;

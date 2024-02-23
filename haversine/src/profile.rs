@@ -19,16 +19,24 @@ macro_rules! function_name {
 pub use function_name;
 
 #[macro_export]
+macro_rules! time_bandwidth {
+    ($name:expr, $idx:expr, $bytes:expr) => {
+        let _time_block = $crate::profile::TimeBlock::new($name, $idx as usize, $bytes as u64);
+    };
+}
+pub use time_bandwidth;
+
+#[macro_export]
 macro_rules! time_block {
-    ($name:expr, $idx:literal) => {
-        let _time_block = $crate::profile::TimeBlock::new($name, $idx);
+    ($name:expr, $idx:expr) => {
+        $crate::time_bandwidth!($name, $idx, 0);
     };
 }
 pub use time_block;
 
 #[macro_export]
 macro_rules! time_function {
-    ($idx:literal) => {
+    ($idx:expr) => {
         $crate::time_block!($crate::function_name!(), $idx);
     };
 }
@@ -38,12 +46,13 @@ struct TimeRecord {
     label: &'static str,
     elapsed_exclusive: u64, // Does not include children
     elapsed_inclusive: u64, // Does include children
+    byte_count: u64,
     hit_count: u64,
 }
 
 impl TimeRecord {
     fn new(label: &'static str) -> TimeRecord {
-        TimeRecord { label, elapsed_exclusive: 0, elapsed_inclusive: 0, hit_count: 0 }
+        TimeRecord { label, elapsed_exclusive: 0, elapsed_inclusive: 0, byte_count: 0, hit_count: 0 }
     }
 }
 
@@ -60,7 +69,7 @@ fn get_time_records() -> &'static mut [Option<TimeRecord>; NUM_TIME_RECORDS] {
     }
 }
 
-pub fn print_time_records(total: u64) {
+pub fn print_time_records(total: u64, timer_freq: u64) {
     let total_rcp = 100.0 / total as f64;
     let time_records = get_time_records();
     for record in time_records.iter().flatten() {
@@ -68,6 +77,18 @@ pub fn print_time_records(total: u64) {
         
         if record.elapsed_exclusive != record.elapsed_inclusive {
             print!(", {:.2}% w/children", record.elapsed_inclusive as f64 * total_rcp);
+        }
+        
+        if record.byte_count != 0 {
+            const MEGABYTE: f64 = 1024.0 * 1024.0;
+            const GIGABYTE: f64 = 1024.0 * MEGABYTE;
+            
+            let seconds = record.elapsed_inclusive as f64 / timer_freq as f64;
+            let bytes_per_second = record.byte_count as f64 / seconds;
+            let megabytes = record.byte_count as f64 / MEGABYTE;
+            let gigabytes_per_second = bytes_per_second / GIGABYTE;
+            
+            print!(" {megabytes:.3}MB at {gigabytes_per_second:.2}GB/s");
         }
         
         println!(")");
@@ -82,9 +103,10 @@ pub struct TimeBlock {
 }
 
 impl TimeBlock {
-    pub fn new(label: &'static str, record: usize) -> Self {
+    pub fn new(label: &'static str, record: usize, byte_count: u64) -> Self {
         let time_records = get_time_records();
-        time_records[record].get_or_insert(TimeRecord::new(label));
+        let time_record = time_records[record].get_or_insert(TimeRecord::new(label));
+        time_record.byte_count += byte_count;
         
         let parent = unsafe { PARENT_TIME_RECORD };
         unsafe { PARENT_TIME_RECORD = Some(record) }
