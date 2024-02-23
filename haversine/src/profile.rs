@@ -36,14 +36,14 @@ pub use time_function;
 
 struct TimeRecord {
     label: &'static str,
-    elapsed: u64,
-    child_elapsed: Option<u64>,
+    elapsed_exclusive: u64, // Does not include children
+    elapsed_inclusive: u64, // Does include children
     hit_count: u64,
 }
 
 impl TimeRecord {
     fn new(label: &'static str) -> TimeRecord {
-        TimeRecord { label, elapsed: 0, child_elapsed: None, hit_count: 0 }
+        TimeRecord { label, elapsed_exclusive: 0, elapsed_inclusive: 0, hit_count: 0 }
     }
 }
 
@@ -64,11 +64,10 @@ pub fn print_time_records(total: u64) {
     let total_rcp = 100.0 / total as f64;
     let time_records = get_time_records();
     for record in time_records.iter().flatten() {
-        let elapsed = record.elapsed - record.child_elapsed.unwrap_or(0);
-        print!("  {}[{}]: {} ({:.2}%", record.label, record.hit_count, elapsed, elapsed as f64 * total_rcp);
+        print!("  {}[{}]: {} ({:.2}%", record.label, record.hit_count, record.elapsed_exclusive, record.elapsed_exclusive as f64 * total_rcp);
         
-        if record.child_elapsed.is_some() {
-            print!(", {:.2}% w/children", record.elapsed as f64 * total_rcp);
+        if record.elapsed_exclusive != record.elapsed_inclusive {
+            print!(", {:.2}% w/children", record.elapsed_inclusive as f64 * total_rcp);
         }
         
         println!(")");
@@ -77,6 +76,7 @@ pub fn print_time_records(total: u64) {
 
 pub struct TimeBlock {
     start: u64,
+    old_elapsed_inclusive: u64,
     record: usize,
     parent: Option<usize>,
 }
@@ -84,11 +84,12 @@ pub struct TimeBlock {
 impl TimeBlock {
     pub fn new(label: &'static str, record: usize) -> Self {
         let time_records = get_time_records();
-        time_records[record] .get_or_insert(TimeRecord::new(label));
+        time_records[record].get_or_insert(TimeRecord::new(label));
         
         let parent = unsafe { PARENT_TIME_RECORD };
         unsafe { PARENT_TIME_RECORD = Some(record) }
-        TimeBlock { start: read_cpu_timer(), record, parent }
+        let old_elapsed_inclusive = time_records[record].as_ref().unwrap().elapsed_inclusive;
+        TimeBlock { start: read_cpu_timer(), old_elapsed_inclusive, record, parent }
     }
 }
 
@@ -99,11 +100,12 @@ impl Drop for TimeBlock {
         
         let time_records = get_time_records();
         if let Some(parent_record) = self.parent {
-            let child_elapsed = time_records[parent_record].as_mut().unwrap().child_elapsed.get_or_insert(0);
-            *child_elapsed += elapsed;
+            let child_elapsed = &mut time_records[parent_record].as_mut().unwrap().elapsed_exclusive;
+            *child_elapsed = child_elapsed.wrapping_sub(elapsed);
         }
         let time_record = time_records[self.record].as_mut().unwrap();
-        time_record.elapsed += elapsed;
+        time_record.elapsed_exclusive += elapsed;
+        time_record.elapsed_inclusive = self.old_elapsed_inclusive + elapsed;
         time_record.hit_count += 1;
     }
 }
