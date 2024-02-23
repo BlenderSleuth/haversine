@@ -1,4 +1,5 @@
 use std::str::Chars;
+use haversine::time_function;
 
 use crate::Pair;
 
@@ -20,6 +21,10 @@ impl ParseState {
     }
 }
 
+fn get_digit(digit: char) -> Option<u8> {
+    (digit as u8).checked_sub(b'0')
+}
+
 pub fn parse_num(input: &mut Chars) -> Option<f64> {
     // Parse number
     let mut valid_num = false;
@@ -34,7 +39,7 @@ pub fn parse_num(input: &mut Chars) -> Option<f64> {
             num_negative = true;
         } else if digit == '.' {
             frac_part = true;
-        } else if let Some(digit) = digit.to_digit(10)  {
+        } else if let Some(digit) = get_digit(digit) {
             valid_num = true;
             if frac_part {
                 num += (digit as f64) * frac_div;
@@ -58,7 +63,9 @@ pub fn parse_num(input: &mut Chars) -> Option<f64> {
 }
 
 pub fn parse_pairs(input: &str) -> Option<Vec<Pair>> {
-    let minimum_json_pair_encoding = 24*4; // Minimum 24 bytes per number encoding
+    time_function!(1);
+    
+    let minimum_json_pair_encoding = 24 * 4; // Minimum 24 bytes per number encoding
     let max_pair_count = input.len() / minimum_json_pair_encoding;
 
     let mut pairs = vec![Pair::default(); max_pair_count];
