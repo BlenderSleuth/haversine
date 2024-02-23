@@ -3,6 +3,9 @@ name = "haversine"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+profile = []
+
 [dependencies]
 
 [dependencies.windows-sys]

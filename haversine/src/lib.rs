@@ -1,4 +1,6 @@
 pub mod timer;
+#[cfg_attr(feature="profile", path="profile.rs")]
+#[cfg_attr(not(feature="profile"), path="profile_stub.rs")]
 pub mod profile;
 
 // NOTE(casey): earth_radius is generally expected to be 6372.8

@@ -50,7 +50,6 @@ fn main() -> std::io::Result<()> {
         time_block!("Sum", 2);
         let sum_coef = 1.0 / pairs.len() as f64;
         for Pair { x0, y0, x1, y1 } in pairs.iter().cloned() {
-            time_block!("SingleSum", 3);
             let earth_radius = 6372.8;
             let distance = haversine::reference_haversine(x0, y0, x1, y1, earth_radius);
             distance_sum += distance * sum_coef;
