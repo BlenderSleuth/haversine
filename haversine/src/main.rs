@@ -7,7 +7,7 @@ use std::fs::File;
 
 use parser::parse_pairs;
 use haversine::profile::{print_time_records, time_block, time_bandwidth};
-use haversine::timer::{estimate_cpu_frequency, read_cpu_timer};
+use metrics::timing::{estimate_cpu_frequency, read_cpu_timer};
 
 #[repr(u8)]
 enum ProfPoint {

@@ -1,3 +1,6 @@
+use std::io;
+use std::io::Write;
+use std::num::NonZeroU64;
 use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 
 pub fn get_os_timer_freq() -> u64 {
@@ -25,7 +28,7 @@ pub fn estimate_cpu_frequency(millis_to_wait: u64) -> u64 {
 
     let mut os_elapsed: u64 = 0;
     let os_wait_time = millis_to_wait * os_freq / 1000;
-    
+
     let cpu_start = read_cpu_timer();
     let os_start = read_os_timer();
     while os_elapsed < os_wait_time {
@@ -34,10 +37,35 @@ pub fn estimate_cpu_frequency(millis_to_wait: u64) -> u64 {
     }
     let cpu_end = read_cpu_timer();
     let cpu_elapsed = cpu_end - cpu_start;
-    
+
     if os_elapsed > 0 {
         (cpu_elapsed * os_freq) / os_elapsed
     } else {
         0
     }
 }
+
+pub fn cpu_time_to_seconds(cpu_time: u64, cpu_freq: NonZeroU64) -> f64 {
+    cpu_time as f64 / cpu_freq.get() as f64
+}
+
+pub fn print_time(label: &str, cpu_time: u64, freq: u64, num_bytes: Option<NonZeroU64>, carriage_return: bool) {
+    print!("{label}: {cpu_time}");
+    if let Some(freq) = NonZeroU64::new(freq) {
+        let time_seconds = cpu_time_to_seconds(cpu_time, freq);
+        let time_ms = time_seconds * 1000.0;
+        print!(" ({time_ms:.6}ms)");
+        if let Some(num_bytes) = num_bytes {
+            const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
+            let best_bandwidth = num_bytes.get() as f64 / (time_seconds * GIGABYTE);
+            print!(" {best_bandwidth:.6} GB/s");
+        }
+    }
+    if carriage_return {
+        print!("               \r");
+    } else {
+        println!();
+    }
+    io::stdout().flush().unwrap();
+}
+

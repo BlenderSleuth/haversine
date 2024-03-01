@@ -1,4 +1,4 @@
-use crate::timer::read_cpu_timer;
+use metrics::timing::read_cpu_timer;
 
 #[macro_export]
 macro_rules! function_name {

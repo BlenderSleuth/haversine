@@ -7,11 +7,4 @@ edition = "2021"
 profile = []
 
 [dependencies]
-
-[dependencies.windows-sys]
-version = "0.52"
-features = [
-    "Win32_System",
-    "Win32_System_Performance",
-    "Win32_Foundation",
-]
+metrics = { path = "../metrics" }

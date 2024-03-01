@@ -1,0 +1,14 @@
+[package]
+name = "metrics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[dependencies.windows-sys]
+version = "0.52"
+features = [
+    "Win32_System",
+    "Win32_System_Performance",
+    "Win32_Foundation",
+]

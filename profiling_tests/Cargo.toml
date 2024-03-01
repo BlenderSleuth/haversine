@@ -1,0 +1,15 @@
+[package]
+name = "profiling_tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+metrics = { path = "../metrics" }
+
+[dependencies.windows-sys]
+version = "0.52"
+features = [
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_Security",
+]
