@@ -135,6 +135,10 @@ impl RepetitionTester {
     pub fn get_result(&self) -> &RepetitionTestResult {
         &self.result
     }
+    
+    pub fn has_error(&self) -> bool {
+        self.mode == TestMode::Error
+    }
 }
 
 pub struct RepetitionTesterBlock<'a> {

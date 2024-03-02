@@ -25,11 +25,15 @@ fn main() -> std::io::Result<()> {
 
             let mut testers = [RepetitionTester::new(size, cpu_freq); read_tests::TESTS.len()];
             
-            loop {
+            'test_loop: loop {
                 for (test_func, tester) in read_tests::TESTS.iter().zip(testers.iter_mut()) {
                     print!("\n--- {} ---\n", test_func.name);
                     tester.new_test_wave(read_params.dest.len() as u64, cpu_freq, TRY_FOR_SECONDS);
                     (test_func.func)(tester, &mut read_params);
+                    
+                    if tester.has_error() {
+                        break 'test_loop;
+                    }
                 };
             }
         } else {
