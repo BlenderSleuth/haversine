@@ -2,6 +2,8 @@ use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::io::Read;
 
+use enum_iterator::{cardinality, Sequence};
+
 use libc::{fopen, fclose, fread};
 
 use windows_sys::Win32::Foundation::{CloseHandle, GENERIC_READ, INVALID_HANDLE_VALUE};
@@ -9,9 +11,37 @@ use windows_sys::Win32::Storage::FileSystem::{CreateFileA, FILE_ATTRIBUTE_NORMAL
 
 use metrics::repetition_tester::{RepetitionTester, test_block};
 
+#[derive(Copy, Clone, PartialEq, Sequence)]
+#[repr(u8)]
+pub enum AllocType {
+    None,
+    Malloc,
+}
+
+impl AllocType {
+    pub const NUM_ALLOC_TYPES: usize = cardinality::<AllocType>();
+    
+    pub fn to_str(&self) -> &str {
+        match self {
+            AllocType::None => "",
+            AllocType::Malloc => "malloc + ",
+        }
+    }
+}
+
 pub struct ReadTestParameters<'a> {
-    pub dest: &'a mut [u8],
+    pub alloc_type: AllocType,
+    pub dest: Vec<u8>,
     pub filename: &'a str,
+}
+
+impl<'a> ReadTestParameters<'a> {
+    fn realloc(&mut self) {
+        // Reallocate destination buffer for page fault testing
+        if self.alloc_type == AllocType::Malloc {
+            self.dest = vec![0u8; self.dest.len()];
+        }
+    }
 }
 
 type TestFunction = fn(&mut RepetitionTester, &mut ReadTestParameters);
@@ -32,9 +62,11 @@ fn test_read(tester: &mut RepetitionTester, params: &mut ReadTestParameters) {
         let mut file = File::open(params.filename);
 
         if let Ok(file) = &mut file {
-            let result= {
+            params.realloc();
+
+            let result = {
                 test_block!(tester);
-                file.read(params.dest)
+                file.read(params.dest.as_mut_slice())
             };
 
             if let Ok(read_size) = result {
@@ -55,24 +87,24 @@ fn test_fread(tester: &mut RepetitionTester, params: &mut ReadTestParameters) {
             // Rust 1.77 (March 21 2024): use c literal syntax
             fopen(filename.as_ptr(), CStr::from_bytes_with_nul("rb\0".as_bytes()).unwrap().as_ptr())
         };
-        
+
         if !file.is_null() {
-            
+            // Reallocate destination buffer for page fault testing
+            params.realloc();
             let result = unsafe {
                 test_block!(tester);
                 fread(params.dest.as_mut_ptr() as *mut libc::c_void, params.dest.len(), 1, file)
             };
-            
+
             if result == 1 {
                 tester.count_bytes(params.dest.len() as u64);
             } else {
                 tester.error("fread failed");
             }
-            
+
             unsafe {
                 fclose(file);
             }
-            
         } else {
             tester.error("fopen failed");
         }
@@ -83,10 +115,12 @@ fn test_readfile(tester: &mut RepetitionTester, params: &mut ReadTestParameters)
     while tester.testing() {
         let file = unsafe {
             let filename = CString::new(params.filename).unwrap();
-            CreateFileA(filename.as_bytes_with_nul().as_ptr(), GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, std::ptr::null_mut(), OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
+            CreateFileA(filename.as_bytes_with_nul().as_ptr(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, std::ptr::null_mut(), OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
         };
-        
+
         if file != INVALID_HANDLE_VALUE {
+            params.realloc();
+
             let mut size_remaining = params.dest.len() as u64;
             let mut dest = params.dest.as_mut_ptr();
             while size_remaining > 0
@@ -102,13 +136,11 @@ fn test_readfile(tester: &mut RepetitionTester, params: &mut ReadTestParameters)
                     test_block!(tester);
                     ReadFile(file, dest, read_size, std::ptr::from_mut(&mut bytes_read), std::ptr::null_mut())
                 };
-                
+
                 if result != 0 && (bytes_read == read_size)
                 {
                     tester.count_bytes(read_size as u64);
-                }
-                else
-                {
+                } else {
                     tester.error("ReadFile failed");
                 }
 
