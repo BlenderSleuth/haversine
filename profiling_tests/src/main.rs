@@ -1,4 +1,5 @@
 mod read_tests;
+mod nop_loop;
 
 use std::env;
 use enum_iterator::all;
