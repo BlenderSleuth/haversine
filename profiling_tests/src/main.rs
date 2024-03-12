@@ -14,7 +14,7 @@ fn main() -> std::io::Result<()> {
         let size = file.metadata()?.len();
 
         if size > 0 {
-            testing::test_loop(size, cpu_freq, &filename);
+            testing::bandwidth_test_loop(size, cpu_freq, &filename);
         } else {
             eprintln!("ERROR: Test data size must be non-zero.");
         }

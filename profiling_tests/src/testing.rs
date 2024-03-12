@@ -4,6 +4,7 @@ use enum_iterator::{all, cardinality, Sequence};
 use metrics::repetition_tester::RepetitionTester;
 
 const TRY_FOR_SECONDS: u32 = 10;
+
 mod read_tests;
 mod write_tests;
 
@@ -66,21 +67,53 @@ struct TestFunction {
     pub func: fn(&mut RepetitionTester, &mut TestParameters),
 }
 
-const TESTS: &[TestFunction] = &[
+const BANDWIDTH_TESTS: &[TestFunction] = &[
+    TestFunction { name: "write_to_all_bytes", func: write_tests::write_to_all_bytes },
     TestFunction { name: "write_to_all_bytes_inl_asm", func: write_tests::write_to_all_bytes_inl_asm },
+    TestFunction { name: "mov_all_bytes", func: write_tests::mov_all_bytes },
+    TestFunction { name: "nop_all_bytes", func: write_tests::nop_all_bytes },
+    TestFunction { name: "cmp_all_bytes", func: write_tests::cmp_all_bytes },
+    TestFunction { name: "dec_all_bytes", func: write_tests::dec_all_bytes },
+];
+
+#[allow(dead_code)]
+pub fn bandwidth_test_loop(size: u64, cpu_freq: u64, filename: &str) {
+    let mut params = TestParameters::new(AllocType::None, size as usize, &filename);
+
+    let mut testers = [RepetitionTester::new(size, cpu_freq); BANDWIDTH_TESTS.len()];
+
+    'test_loop: loop {
+        for (test_func, tester) in BANDWIDTH_TESTS.iter().zip(testers.iter_mut()) {
+            let dest = params.handle_allocation();
+
+            print!("\n--- {} ---\n", test_func.name);
+
+            tester.new_test_wave(dest.len() as u64, cpu_freq, TRY_FOR_SECONDS);
+            (test_func.func)(tester, &mut params);
+
+            if tester.has_error() {
+                break 'test_loop;
+            }
+        }
+    }
+}
+
+
+const PF_TESTS: &[TestFunction] = &[
     TestFunction { name: "write_to_all_bytes", func: write_tests::write_to_all_bytes },
     TestFunction { name: "read", func: read_tests::test_read },
     TestFunction { name: "fread", func: read_tests::test_fread },
     TestFunction { name: "ReadFile", func: read_tests::test_readfile },
 ];
 
-pub fn test_loop(size: u64, cpu_freq: u64, filename: &str) {
+#[allow(dead_code)]
+pub fn pf_test_loop(size: u64, cpu_freq: u64, filename: &str) {
     let mut params = TestParameters::new(AllocType::None, size as usize, &filename);
 
-    let mut testers = [[RepetitionTester::new(size, cpu_freq); AllocType::NUM_ALLOC_TYPES]; TESTS.len()];
+    let mut testers = [[RepetitionTester::new(size, cpu_freq); AllocType::NUM_ALLOC_TYPES]; PF_TESTS.len()];
 
     'test_loop: loop {
-        for (test_func, testers) in TESTS.iter().zip(testers.iter_mut()) {
+        for (test_func, testers) in PF_TESTS.iter().zip(testers.iter_mut()) {
             for (tester, alloc_type) in testers.iter_mut().zip(all::<AllocType>()) {
                 params.alloc_type = alloc_type;
                 let dest = params.handle_allocation();
