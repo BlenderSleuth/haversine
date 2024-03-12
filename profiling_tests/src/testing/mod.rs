@@ -67,23 +67,19 @@ struct TestFunction {
     pub func: fn(&mut RepetitionTester, &mut TestParameters),
 }
 
-const BANDWIDTH_TESTS: &[TestFunction] = &[
+const WRITE_TESTS: &[TestFunction] = &[
     TestFunction { name: "write_to_all_bytes", func: write_tests::write_to_all_bytes },
     TestFunction { name: "write_to_all_bytes_inl_asm", func: write_tests::write_to_all_bytes_inl_asm },
-    TestFunction { name: "mov_all_bytes", func: write_tests::mov_all_bytes },
-    TestFunction { name: "nop_all_bytes", func: write_tests::nop_all_bytes },
-    TestFunction { name: "cmp_all_bytes", func: write_tests::cmp_all_bytes },
-    TestFunction { name: "dec_all_bytes", func: write_tests::dec_all_bytes },
 ];
 
 #[allow(dead_code)]
 pub fn bandwidth_test_loop(size: u64, cpu_freq: u64, filename: &str) {
     let mut params = TestParameters::new(AllocType::None, size as usize, &filename);
 
-    let mut testers = [RepetitionTester::new(size, cpu_freq); BANDWIDTH_TESTS.len()];
+    let mut testers = [RepetitionTester::new(size, cpu_freq); WRITE_TESTS.len()];
 
     'test_loop: loop {
-        for (test_func, tester) in BANDWIDTH_TESTS.iter().zip(testers.iter_mut()) {
+        for (test_func, tester) in WRITE_TESTS.iter().zip(testers.iter_mut()) {
             let dest = params.handle_allocation();
 
             print!("\n--- {} ---\n", test_func.name);
@@ -130,3 +126,5 @@ pub fn pf_test_loop(size: u64, cpu_freq: u64, filename: &str) {
         }
     }
 }
+
+pub use write_tests::asm_test_loop;

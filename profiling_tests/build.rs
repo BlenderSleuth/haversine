@@ -7,6 +7,8 @@ use glob::glob;
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_path = PathBuf::from(out_dir.clone());
+
+    println!("cargo:rerun-if-changed=src/asm");
     
     // Assemble all asm files in src directory
     for path in glob("src/**/*.asm").expect("Failed to read asm glob pattern") {
@@ -15,8 +17,6 @@ fn main() {
         
         let obj_path = out_path.join(asm_path.file_name().unwrap()).with_extension("obj");
         let obj_path_str = obj_path.to_str().unwrap();
-        
-        println!("cargo:rerun-if-changed={asm_path_str}");
         
         Command::new("nasm")
             .arg(asm_path_str)

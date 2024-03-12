@@ -59,7 +59,7 @@ impl RepetitionTestValue {
         
         // Print page faults
         if avg.page_faults > 0 {
-            print!(" PF: {:.4} ({:.4}KB/fault)", avg.page_faults, avg.bytes as f64 / (avg.page_faults as f64 * 1024.0));
+            print!(" PF: {:.4} ({:.4} KB/fault)", avg.page_faults, avg.bytes as f64 / (avg.page_faults as f64 * 1024.0));
         }
         
         io::stdout().flush().unwrap();
