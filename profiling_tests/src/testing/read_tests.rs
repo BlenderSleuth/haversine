@@ -1,8 +1,8 @@
 use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::io::Read;
-
-use enum_iterator::{cardinality, Sequence};
+use std::mem;
+use std::mem::MaybeUninit;
 
 use libc::{fopen, fclose, fread};
 
@@ -11,62 +11,22 @@ use windows_sys::Win32::Storage::FileSystem::{CreateFileA, FILE_ATTRIBUTE_NORMAL
 
 use metrics::repetition_tester::{RepetitionTester, test_block};
 
-#[derive(Copy, Clone, PartialEq, Sequence)]
-#[repr(u8)]
-pub enum AllocType {
-    None,
-    Malloc,
-}
+use crate::testing::TestParameters;
 
-impl AllocType {
-    pub const NUM_ALLOC_TYPES: usize = cardinality::<AllocType>();
-    
-    pub fn to_str(&self) -> &str {
-        match self {
-            AllocType::None => "",
-            AllocType::Malloc => "malloc + ",
-        }
-    }
-}
 
-pub struct ReadTestParameters<'a> {
-    pub alloc_type: AllocType,
-    pub dest: Vec<u8>,
-    pub filename: &'a str,
-}
-
-impl<'a> ReadTestParameters<'a> {
-    fn realloc(&mut self) {
-        // Reallocate destination buffer for page fault testing
-        if self.alloc_type == AllocType::Malloc {
-            self.dest = vec![0u8; self.dest.len()];
-        }
-    }
-}
-
-type TestFunction = fn(&mut RepetitionTester, &mut ReadTestParameters);
-
-pub struct ReadTestFunction {
-    pub name: &'static str,
-    pub func: TestFunction,
-}
-
-pub const TESTS: &[ReadTestFunction] = &[
-    ReadTestFunction { name: "read", func: test_read },
-    ReadTestFunction { name: "fread", func: test_fread },
-    ReadTestFunction { name: "ReadFile", func: test_readfile },
-];
-
-fn test_read(tester: &mut RepetitionTester, params: &mut ReadTestParameters) {
+pub(crate) fn test_read(tester: &mut RepetitionTester, params: &mut TestParameters) {
     while tester.testing() {
         let mut file = File::open(params.filename);
 
         if let Ok(file) = &mut file {
-            params.realloc();
-
+            let dest = params.handle_allocation();
+            
             let result = {
                 test_block!(tester);
-                file.read(params.dest.as_mut_slice())
+                // Zero initialise the buffer for safety.
+                dest.fill(MaybeUninit::zeroed());
+                let dest = unsafe { mem::transmute::<_, &mut [u8]>(dest) };
+                file.read(dest)
             };
 
             if let Ok(read_size) = result {
@@ -80,7 +40,7 @@ fn test_read(tester: &mut RepetitionTester, params: &mut ReadTestParameters) {
     }
 }
 
-fn test_fread(tester: &mut RepetitionTester, params: &mut ReadTestParameters) {
+pub(crate) fn test_fread(tester: &mut RepetitionTester, params: &mut TestParameters) {
     while tester.testing() {
         let filename = CString::new(params.filename).unwrap();
         let file = unsafe {
@@ -89,15 +49,15 @@ fn test_fread(tester: &mut RepetitionTester, params: &mut ReadTestParameters) {
         };
 
         if !file.is_null() {
-            // Reallocate destination buffer for page fault testing
-            params.realloc();
+            let dest = params.handle_allocation();
+            
             let result = unsafe {
                 test_block!(tester);
-                fread(params.dest.as_mut_ptr() as *mut libc::c_void, params.dest.len(), 1, file)
+                fread(dest.as_mut_ptr() as *mut libc::c_void, dest.len(), 1, file)
             };
 
             if result == 1 {
-                tester.count_bytes(params.dest.len() as u64);
+                tester.count_bytes(dest.len() as u64);
             } else {
                 tester.error("fread failed");
             }
@@ -111,7 +71,7 @@ fn test_fread(tester: &mut RepetitionTester, params: &mut ReadTestParameters) {
     }
 }
 
-fn test_readfile(tester: &mut RepetitionTester, params: &mut ReadTestParameters) {
+pub(crate) fn test_readfile(tester: &mut RepetitionTester, params: &mut TestParameters) {
     while tester.testing() {
         let file = unsafe {
             let filename = CString::new(params.filename).unwrap();
@@ -119,26 +79,24 @@ fn test_readfile(tester: &mut RepetitionTester, params: &mut ReadTestParameters)
         };
 
         if file != INVALID_HANDLE_VALUE {
-            params.realloc();
+            let dest = params.handle_allocation();
 
-            let mut size_remaining = params.dest.len() as u64;
-            let mut dest = params.dest.as_mut_ptr();
+            let mut size_remaining = dest.len() as u64;
+            let mut dest = dest.as_mut_ptr();
             while size_remaining > 0
             {
                 let mut read_size = u32::MAX;
-                if read_size as u64 > size_remaining
-                {
+                if read_size as u64 > size_remaining {
                     read_size = size_remaining as u32;
                 }
 
                 let mut bytes_read = 0;
                 let result = unsafe {
                     test_block!(tester);
-                    ReadFile(file, dest, read_size, std::ptr::from_mut(&mut bytes_read), std::ptr::null_mut())
+                    ReadFile(file, dest as *mut u8, read_size, std::ptr::from_mut(&mut bytes_read), std::ptr::null_mut())
                 };
 
-                if result != 0 && (bytes_read == read_size)
-                {
+                if result != 0 && (bytes_read == read_size) {
                     tester.count_bytes(read_size as u64);
                 } else {
                     tester.error("ReadFile failed");

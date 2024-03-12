@@ -59,7 +59,7 @@ impl RepetitionTestValue {
         
         // Print page faults
         if avg.page_faults > 0 {
-            print!(" PF: {:.4} ({:.4}KB/fault)", avg.page_faults, avg.bytes as f64 / avg.page_faults as f64 * 1024.0);
+            print!(" PF: {:.4} ({:.4}KB/fault)", avg.page_faults, avg.bytes as f64 / (avg.page_faults as f64 * 1024.0));
         }
         
         io::stdout().flush().unwrap();
@@ -209,7 +209,7 @@ impl RepetitionTester {
                         self.test_start_time = current_time;
                         if self.print_new_minimums {
                             result.min.print("Min", self.cpu_timer_freq);
-                            print!("                                   \r");
+                            print!("                                       \r");
                         }
                     }
 
@@ -243,6 +243,7 @@ pub struct RepetitionTesterBlock<'a> {
 }
 
 impl<'a> RepetitionTesterBlock<'a> {
+    #[inline]
     pub fn new(tester: &'a mut RepetitionTester) -> Self {
         tester.accumulated.time = tester.accumulated.time.wrapping_sub(read_cpu_timer());
         tester.accumulated.page_faults = tester.accumulated.page_faults.wrapping_sub(read_os_page_fault_count());

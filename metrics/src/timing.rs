@@ -17,6 +17,7 @@ pub fn read_os_timer() -> u64 {
     count as u64
 }
 
+#[inline]
 pub fn read_cpu_timer() -> u64 {
     unsafe { core::arch::x86_64::_rdtsc() }
 }
