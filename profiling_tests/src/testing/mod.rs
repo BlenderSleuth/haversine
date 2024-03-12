@@ -3,10 +3,16 @@ use std::mem::MaybeUninit;
 use enum_iterator::{all, cardinality, Sequence};
 use metrics::repetition_tester::RepetitionTester;
 
-const TRY_FOR_SECONDS: u32 = 10;
+const TRY_FOR_SECONDS: u32 = 1;
 
 mod read_tests;
-mod write_tests;
+pub mod write_tests;
+#[allow(unused_imports)]
+pub use write_tests::asm_test_loop;
+
+mod branch_predictor_tests;
+#[allow(unused_imports)]
+pub use branch_predictor_tests::branch_predictor_test_loop;
 
 #[derive(Copy, Clone, PartialEq, Sequence)]
 #[repr(u8)]
@@ -126,5 +132,3 @@ pub fn pf_test_loop(size: u64, cpu_freq: u64, filename: &str) {
         }
     }
 }
-
-pub use write_tests::asm_test_loop;
