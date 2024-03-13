@@ -3,7 +3,7 @@ use std::mem::MaybeUninit;
 use enum_iterator::{all, cardinality, Sequence};
 use metrics::repetition_tester::RepetitionTester;
 
-const TRY_FOR_SECONDS: u32 = 1;
+const TRY_FOR_SECONDS: u32 = 10;
 
 mod read_tests;
 pub mod write_tests;
@@ -71,6 +71,11 @@ impl<'a> TestParameters<'a> {
 struct TestFunction {
     pub name: &'static str,
     pub func: fn(&mut RepetitionTester, &mut TestParameters),
+}
+
+pub struct ASMFunction {
+    pub name: &'static str,
+    pub func: unsafe extern "C" fn(u64, *mut u8),
 }
 
 const WRITE_TESTS: &[TestFunction] = &[

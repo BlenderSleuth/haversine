@@ -1,7 +1,7 @@
 use std::arch::asm;
 use metrics::repetition_tester::{RepetitionTester, test_block};
 
-use crate::testing::{AllocType, TestParameters, TRY_FOR_SECONDS};
+use crate::testing::{AllocType, ASMFunction, TestParameters, TRY_FOR_SECONDS};
 
 pub fn write_to_all_bytes(tester: &mut RepetitionTester, params: &mut TestParameters) {
     while tester.testing() {
@@ -47,11 +47,6 @@ pub fn write_to_all_bytes_inl_asm(tester: &mut RepetitionTester, params: &mut Te
     }
 }
 
-pub struct ASMFunction {
-    pub name: &'static str,
-    pub func: unsafe extern "C" fn(u64, *mut u8),
-}
-
 extern "C" {
     pub fn MOVAllBytesASM(count: u64, data: *mut u8);
     pub fn NOPAllBytesASM(count: u64, data: *mut u8);
@@ -63,7 +58,8 @@ extern "C" {
     pub fn NOP1x9AllBytes(count: u64, data: *mut u8);
 }
 
-pub const ASM_TESTS: &[ASMFunction] = &[
+#[allow(dead_code)]
+pub const WRITE_ASM_TESTS: &[ASMFunction] = &[
     ASMFunction { name: "MOVAllBytesASM", func: MOVAllBytesASM },
     ASMFunction { name: "NOPAllBytesASM", func: NOPAllBytesASM },
     ASMFunction { name: "CMPAllBytesASM", func: CMPAllBytesASM },
@@ -73,14 +69,27 @@ pub const ASM_TESTS: &[ASMFunction] = &[
     ASMFunction { name: "NOP1x9AllBytes", func: NOP1x9AllBytes },
 ];
 
-#[allow(dead_code)]
-pub fn asm_test_loop(size: u64, cpu_freq: u64, filename: &str) {
-    let mut params = TestParameters::new(AllocType::None, size as usize, &filename);
+extern "C" {
+    pub fn Write_x1(count: u64, data: *mut u8);
+    pub fn Write_x2(count: u64, data: *mut u8);
+    pub fn Write_x3(count: u64, data: *mut u8);
+    pub fn Write_x4(count: u64, data: *mut u8);
+}
 
-    let mut testers = [RepetitionTester::new(size, cpu_freq); ASM_TESTS.len()];
+pub const WRITE_PORT_TESTS: &[ASMFunction] = &[
+    ASMFunction { name: "Write_x1", func: Write_x1 },
+    ASMFunction { name: "Write_x2", func: Write_x2 },
+    ASMFunction { name: "Write_x3", func: Write_x3 },
+    ASMFunction { name: "Write_x4", func: Write_x4 },
+];
+
+#[allow(dead_code)]
+pub fn asm_test_loop(size: u64, cpu_freq: u64, filename: &str, tests: &[ASMFunction]) {
+    let mut params = TestParameters::new(AllocType::None, size as usize, &filename);
+    let mut testers = vec![RepetitionTester::new(size, cpu_freq); tests.len()];
 
     'test_loop: loop {
-        for (test_func, tester) in ASM_TESTS.iter().zip(testers.iter_mut()) {
+        for (test_func, tester) in tests.iter().zip(testers.iter_mut()) {
             let dest = params.handle_allocation();
             let len = dest.len() as u64;
 

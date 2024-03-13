@@ -1,7 +1,9 @@
-mod testing;
-
 use std::env;
 use metrics::timing::estimate_cpu_frequency;
+
+mod testing;
+
+use crate::testing::write_tests::{WRITE_ASM_TESTS, WRITE_PORT_TESTS};
 
 const TEST_CPU_FREQ_MILLIS: u64 = 100;
 
@@ -16,8 +18,9 @@ fn main() -> std::io::Result<()> {
         if size > 0 {
             //testing::pf_test_loop(size, cpu_freq, &filename);
             //testing::bandwidth_test_loop(size, cpu_freq, &filename);
-            //testing::asm_test_loop(size, cpu_freq, &filename);
-            testing::branch_predictor_test_loop(size, cpu_freq, &filename);
+            //testing::asm_test_loop(size, cpu_freq, &filename, WRITE_ASM_TESTS);
+            //testing::branch_predictor_test_loop(size, cpu_freq, &filename);
+            testing::asm_test_loop(size, cpu_freq, &filename, WRITE_PORT_TESTS);
         } else {
             eprintln!("ERROR: Test data size must be non-zero.");
         }
