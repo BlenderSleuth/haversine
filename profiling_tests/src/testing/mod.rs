@@ -5,12 +5,14 @@ use metrics::repetition_tester::RepetitionTester;
 
 const TRY_FOR_SECONDS: u32 = 10;
 
-mod read_tests;
+pub mod read_tests;
 pub mod write_tests;
 #[allow(unused_imports)]
 pub use write_tests::asm_test_loop;
 
-mod branch_predictor_tests;
+pub mod branch_predictor_tests;
+pub mod simd_tests;
+
 #[allow(unused_imports)]
 pub use branch_predictor_tests::branch_predictor_test_loop;
 

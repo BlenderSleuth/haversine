@@ -4,6 +4,7 @@ use metrics::timing::estimate_cpu_frequency;
 mod testing;
 
 use crate::testing::write_tests::{WRITE_ASM_TESTS, WRITE_PORT_TESTS};
+use crate::testing::simd_tests::READ_WIDTH_TESTS;
 
 const TEST_CPU_FREQ_MILLIS: u64 = 100;
 
@@ -20,7 +21,8 @@ fn main() -> std::io::Result<()> {
             //testing::bandwidth_test_loop(size, cpu_freq, &filename);
             //testing::asm_test_loop(size, cpu_freq, &filename, WRITE_ASM_TESTS);
             //testing::branch_predictor_test_loop(size, cpu_freq, &filename);
-            testing::asm_test_loop(size, cpu_freq, &filename, WRITE_PORT_TESTS);
+            //testing::asm_test_loop(size, cpu_freq, &filename, WRITE_PORT_TESTS);
+            testing::asm_test_loop(size, cpu_freq, &filename, READ_WIDTH_TESTS);
         } else {
             eprintln!("ERROR: Test data size must be non-zero.");
         }

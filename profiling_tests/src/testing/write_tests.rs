@@ -76,6 +76,7 @@ extern "C" {
     pub fn Write_x4(count: u64, data: *mut u8);
 }
 
+#[allow(dead_code)]
 pub const WRITE_PORT_TESTS: &[ASMFunction] = &[
     ASMFunction { name: "Write_x1", func: Write_x1 },
     ASMFunction { name: "Write_x2", func: Write_x2 },
