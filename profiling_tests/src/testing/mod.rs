@@ -12,6 +12,7 @@ pub use write_tests::asm_test_loop;
 
 pub mod branch_predictor_tests;
 pub mod simd_tests;
+pub mod cache_tests;
 
 #[allow(unused_imports)]
 pub use branch_predictor_tests::branch_predictor_test_loop;

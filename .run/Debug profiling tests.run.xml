@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Debug profiling tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run --bin profiling_tests -- data_10000000_haveranswer.f64" />
+    <option name="command" value="run --bin profiling_tests" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs />
     <option name="emulateTerminal" value="true" />

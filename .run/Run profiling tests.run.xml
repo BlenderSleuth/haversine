@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run profiling tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run --bin profiling_tests --release  -- data_10000000_flex.json" />
+    <option name="command" value="run --bin profiling_tests --release " />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs />
     <option name="emulateTerminal" value="true" />
