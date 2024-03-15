@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run haversine gen" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run --bin haversine_gen --release" />
+    <option name="command" value="run --bin haversine_gen --release cluster 234242432 10000000" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs />
     <option name="emulateTerminal" value="true" />

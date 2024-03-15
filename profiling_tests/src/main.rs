@@ -3,6 +3,7 @@ use metrics::timing::estimate_cpu_frequency;
 
 mod testing;
 
+#[allow(unused_imports)]
 use crate::testing::write_tests::{WRITE_ASM_TESTS, WRITE_PORT_TESTS};
 use crate::testing::simd_tests::READ_WIDTH_TESTS;
 
