@@ -100,9 +100,9 @@ impl Div<u64> for RepetitionTestValue {
 
 #[derive(Clone, Copy)]
 pub struct RepetitionTestResult {
-    total: RepetitionTestValue,
-    max: RepetitionTestValue,
-    min: RepetitionTestValue,
+    pub total: RepetitionTestValue,
+    pub max: RepetitionTestValue,
+    pub min: RepetitionTestValue,
 }
 
 impl RepetitionTestResult {

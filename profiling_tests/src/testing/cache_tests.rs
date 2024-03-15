@@ -44,4 +44,14 @@ pub fn cache_test_loop(size: u64, cpu_freq: u64) {
             break;
         }
     }
+    
+    println!();
+    println!("Region Size,GB/s");
+    for (cache_size_idx, tester) in (MIN_CACHE_IDX..=MAX_CACHE_IDX).zip(testers.iter()) {
+        let cache_size = 1u64 << cache_size_idx;
+        let seconds = tester.get_result().min.time as f64 / cpu_freq as f64;
+        const GB: f64 = 1024.0 * 1024.0 * 1024.0;
+        let bandwidth = size as f64 / GB / seconds;
+        println!("{cache_size},{bandwidth}");
+    }
 }
