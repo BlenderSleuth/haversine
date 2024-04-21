@@ -26,7 +26,7 @@ CacheTest:
     add r10, r9
     
     sub rcx, 256
-    jnz .loop
+    ja .loop
     ret
     
 

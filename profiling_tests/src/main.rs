@@ -9,6 +9,7 @@ use crate::testing::write_tests::{WRITE_ASM_TESTS, WRITE_PORT_TESTS};
 use crate::testing::simd_tests::READ_WIDTH_TESTS;
 #[allow(unused_imports)]
 use crate::testing::cache_tests::{cache_test_loop, cache_test_loop2, CacheSizeTest};
+use crate::testing::cache_tests::cache_test_loop_unaligned;
 
 const TEST_CPU_FREQ_MILLIS: u64 = 100;
 
@@ -51,7 +52,9 @@ fn main() -> std::io::Result<()> {
         
         let tests = CACHE_SIZES.iter().map(|size| CacheSizeTest::new(FULL_BUFFER_SIZE, *size)).collect::<Vec<_>>();
         
-        cache_test_loop2(FULL_BUFFER_SIZE, cpu_freq, &tests);
+        //cache_test_loop2(FULL_BUFFER_SIZE, cpu_freq, &tests);
+
+        cache_test_loop_unaligned(FULL_BUFFER_SIZE, cpu_freq);
         
         //eprintln!("Usage: {} [existing filename/data size]", env::current_exe()?.display());
     }
